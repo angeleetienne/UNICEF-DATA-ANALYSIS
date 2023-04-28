@@ -1,0 +1,216 @@
+---
+title: "UNICEF DATA ANALYSIS"
+subtitle: "RISK OF MATERNAL DEATH FOR TEENAGE GIRLS: GLOBAL PICTURE OF AN INEQUALITY"
+author: "Angèle Etienne"
+date: "04-20-2023"
+format: html
+---
+
+```{r include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+install.packages("tidyverse")
+install.packages("readr")
+install.packages("ggplot2")
+install.packages("ggplot")
+install.packages("dplyr")
+install.packages("cluster")
+install.packages("MAP")
+install.packages("mapdata")
+install.packages("maps")
+install.packages("rworldmap")
+install.packages("rnaturalearthdata")
+install.packages("rnaturalearth")
+install.packages("sf")
+library(tidyverse)
+library(readr)
+library(ggplot2)
+library(dplyr)
+library(cluster)
+library(MAP)
+library(mapdata)
+library(maps)
+library(sf)
+options(sf_use_s2 = FALSE)
+
+unicef_indicator_2_1_<- read_csv("unicef_indicator_2 (1).csv")
+
+```
+
+***Every 2 minutes, a woman or a girl dies from complications related to pregnancy or childbirth (UNICEF)***
+
+Every day in 2020, almost 800 women or girls died from preventable causes related to pregnancy and childbirth (World Health Organization). 
+
+*This map highlights how the risk of maternal death is unevenly distributed across countries.*
+
+```{r echo=FALSE}
+options(sf_use_s2 = FALSE)
+library(rnaturalearth)
+library(sf)
+library(ggplot2)
+
+world <- ne_countries(scale = "medium", returnclass = "sf")
+data <- left_join(world, unicef_indicator_2_1_, by = c("name" = "country"))
+
+low_color <- "pink3" # Dark pink
+middle_color <- "pink" # Light pink
+high_color <- "#FFE4E1" # Very light pink
+
+ggplot() +
+  geom_sf(data = data, aes(fill = cut(obs_value, c(0, 500, 2000, Inf)))) +
+  scale_fill_manual(values = c(low_color, middle_color, high_color), 
+                    labels = c("0 to 500", "500 to 2000", "2000 to 65000"),
+                    name = "Probability (1 in X)", drop = FALSE) +
+  labs(title = "RISK OF MATERNAL DEATH FOR 15 YEAR-OLD GIRLS",
+       subtitle = "Global overview (2020)",
+       fill = "obs_value") +
+  theme(plot.title = element_text(hjust = 0.5,family = "Bodoni", size = 12, color = "pink4"),
+        plot.subtitle = element_text(hjust = 0.5, family = "Bodoni", size = 12, color = "pink4"),
+        plot.margin = margin(1,1,1,1, "cm"))
+```
+
+Not all countries are equal when it comes to the risk of maternal mortality for teenage girls. 
+
+*The disparities are glaring, as illustrated by the following chart.*
+
+
+```{r echo=FALSE}
+ggplot(unicef_indicator_2_1_, aes(x = obs_value, y = reorder(country, obs_value))) +
+  geom_point(aes(color = obs_value), size = 2) +
+  scale_color_gradient(low = "#FFE4E1", high = "pink3") +
+  labs(title = "RISK OF MATERNAL DEATH FOR 15 YEAR-OLD GIRLS",
+       subtitle = "Global overview (2020)",
+       x = "Probability (1 in X)",
+       y = "Countries") +
+  theme(plot.title = element_text(hjust = 0.5, family = "Bodoni", size = 12, color = "pink4"),
+        plot.subtitle = element_text(hjust = 0.5, family = "Bodoni", size = 12, color = "pink4"),
+        plot.margin = margin(1,1,1,1, "cm"),
+         axis.title.x = element_text(family = "Bodoni", size = 12, color = "pink4"),
+        axis.title.y = element_text(family = "Bodoni", size = 12, color = "pink4"),
+        axis.text.y = element_blank(),
+        axis.ticks.y = element_blank(),
+        axis.text.x = element_text (family = "Bodoni", size = 12, color = "pink4"),
+        panel.background = element_rect(fill = "#FAF3F0"))
+```
+
+
+Countries with similar risks can be identified.
+
+*The following chart shows 3 different clusters with similar values in terms of risks.*
+
+```{r include=FALSE}
+X <- unicef_indicator_2_1_ $ obs_value
+class(X)
+kmeans <- kmeans(X, centers = 3)
+kmeans$cluster
+```
+
+```{r echo=FALSE}
+
+unicef_indicator_2_1_$color <- ifelse(unicef_indicator_2_1_$obs_value > 100, "pink","pink")
+ggplot(unicef_indicator_2_1_,aes(x=factor(kmeans$cluster), y=obs_value, color=color))+
+  geom_jitter(width = 0.2, height = 0, size = 3, alpha = 0.6) +
+  labs(title = "RISK OF MATERNAL DEATH FOR 15 YEAR-OLD GIRLS (2020)",
+       x = "Country clusters by kmeans",
+       y = "Probability 1 in X") +
+  theme(plot.title = element_text(hjust = 0.5, family = "Bodoni", size = 15, color = "pink4"),
+        plot.subtitle = element_text(hjust = 0.5, family = "Bodoni", size = 12, color = "pink4"),
+        plot.margin = margin(1,1,1,1, "cm"),
+        panel.background = element_rect(fill = "#FAF3F0", color = NA),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
+        axis.title.x = element_text(family = "Bodoni", size = 12, color = "black"),
+        axis.title.y = element_text(family = "Bodoni", size = 12, color = "black"),
+        axis.text.y = element_text(family = "Bodoni", size = 12, color = "pink4"),
+        axis.text.x = element_text (family = "Bodoni", size = 12, color = "pink4"),
+        legend.position = "none")
+```
+
+The inequalities between countries are even more apparent when looking at the extremes.
+
+*The following chart shows that: the 5 countries with the lowest risk of maternal mortality for girls are located in Europe.*
+
+*It is notable that between Belarus and Malta, 1st and 5th in the ranking, the risk is multiplied by more than 2.5.*
+
+```{r echo=FALSE}
+
+library(tidyverse)
+
+  col_types = cols(
+    country = col_character(),
+    alpha_2_code = col_character(),
+    alpha_3_code = col_character(),
+    indicator = col_character(),
+    sex = col_character(),
+    unit_multiplier = col_integer(),
+    obs_value = col_double(),
+    numeric_code = col_character(),
+    time_period = col_double(),
+    time_period_activity_related_to_when_the_data_are_collected = col_logical(),
+    unit_of_measure = col_character(),
+    current_age = col_character(),
+    observation_status = col_character(),
+    observation_confidentaility = col_character() )
+  
+unicef_indicator_2_1_ %>%
+  group_by(country) %>%
+  summarise(obs_value = sum(obs_value, na.rm = TRUE)) %>%
+  arrange(desc(obs_value)) %>%
+  head(5) %>%
+  ggplot(aes(x = fct_reorder(country, -obs_value), y = obs_value)) +
+  geom_bar(stat = "identity", fill = "pink") +
+  labs(title = "COUNTRIES WITH THE LOWEST RISK OF MATERNAL DEATH  FOR
+15 YEAR-OLD GIRLS (2020)",
+       x = "Country",
+       y = "Probability 1 in X") +
+  theme(plot.title = element_text(hjust = 0.5, family = "Bodoni", size = 15, color = "pink4"),
+           axis.title.x = element_text(family = "Bodoni", size = 12, color = "black"),
+        axis.title.y = element_text(family = "Bodoni", size = 12, color = "black"),
+        axis.text.y = element_text(family = "Bodoni", size = 8, color = "pink4"),
+        axis.text.x = element_text (family = "Bodoni", size = 6, color = "pink4"),
+        plot.margin = margin(1,1,1,1, "cm"))
+```
+
+*The following bar chart shows the 5 countries with the highest risks of maternal death for 15 year-old-girls. The countries are located in sub-Saharan Africa.*
+
+
+```{r echo=FALSE}
+library(tidyverse)
+
+  col_types = cols(
+    country = col_character(),
+    alpha_2_code = col_character(),
+    alpha_3_code = col_character(),
+    indicator = col_character(),
+    sex = col_character(),
+    unit_multiplier = col_integer(),
+    obs_value = col_double(),
+    numeric_code = col_character(),
+    time_period = col_double(),
+    time_period_activity_related_to_when_the_data_are_collected = col_logical(),
+    unit_of_measure = col_character(),
+    current_age = col_character(),
+    observation_status = col_character(),
+    observation_confidentaility = col_character() )
+
+unicef_indicator_2_1_ %>%
+  group_by(country) %>%
+  summarise(obs_value = sum(obs_value, na.rm = TRUE)) %>%
+  arrange(obs_value) %>%
+  head(5) %>%
+  ggplot(aes(x = fct_reorder(country, obs_value), y = obs_value)) +
+  geom_bar(stat = "identity", fill = "pink3") +
+  labs( title = "COUNTRIES WITH THE HIGHEST RISK OF MATERNAL DEATH FOR 15 YEAR-OLD GIRLS (2020)",
+    x = "Country",
+    y = "Probability 1 in X" ) +
+  theme(
+    plot.title = element_text(hjust = 0.5, family = "Bodoni", size = 15, color = "pink4"),
+    axis.title.x = element_text(family = "Bodoni", size = 12, color = "black"),
+    axis.title.y = element_text(family = "Bodoni", size = 12, color = "black"),
+    axis.text.y = element_text(family = "Bodoni", size = 8, color = "pink4"),
+    axis.text.x = element_text(family = "Bodoni", size = 6, color = "pink4"),
+    plot.margin = margin(1, 1, 1, 1, "cm")
+  )
+```
+
+**In Chad, a 15-year-old girl has a 1 in 15 chance of dying of maternal causes. She is therefore 4,000 times more likely to die from maternal causes than a 15-year-old girl in Belarus.** 
+
